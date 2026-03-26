@@ -116,9 +116,13 @@ function App() {
                             showFreeTime={false}
                         />
                     ) : (
-                        <div className="h-[600px] flex items-center justify-center text-gray-400">
-                            에타 웹에서 'Copy Element' 한 HTML 코드를
-                            붙여넣으세요.
+                        <div className="h-[600px] flex flex-col items-center justify-center text-gray-400">
+                            <div>에타 웹에서 다음을 붙여넣으세요 !</div>
+                            <div className="text-black">
+                                copy(document.querySelector('.tablebody').outerHTML);
+                                alert('시간표 데이터가 복사되었습니다! 이제
+                                사이트에 붙여넣으세요.');
+                            </div>
                         </div>
                     )}
                 </div>
