@@ -1,0 +1,50 @@
+/* import 순서는 폰트 -> tailwind class 순서로 해야 컴파일에서 안꼬임 */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
+@import "tailwindcss";
+
+/* 테마 설정 */
+@theme {
+    /* 색상 테마 */
+    --color-primary: #0f2f2e;
+    --color-secondary: #1c4f46;
+    --color-accent: #ff0000;
+    --color-main: #1a1f1e;
+    --color-stroke: #f5f5f5;
+
+    /* 폰트 */
+    --font-sans: "Pretendard", ui-sans-serif, system-ui, sans-serif;
+
+    /* 애니메이션 */
+    --animate-fade-in-out: fade-in-out 0.1s ease-in-out both;
+
+    @keyframes fade-in-out {
+        0% {
+            opacity: 0;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+}
+
+/* 베이스 스타일 설정 */
+@layer base {
+    /* RESET */
+    * {
+        padding: 0;
+        margin: 0;
+        box-sizing: border-box;
+    }
+    *:focus {
+        outline: none;
+    }
+
+    /* Body */
+    body {
+        @apply font-sans font-semibold text-main bg-white;
+    }
+}
+
+/* 유틸리티 */
+@layer utilities {
+}
