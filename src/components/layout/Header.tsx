@@ -3,7 +3,7 @@ import Button from "../common/Button";
 export default function Header({
     dialogRef,
 }: {
-    dialogRef: React.RefObject<HTMLDialogElement>;
+    dialogRef: React.RefObject<HTMLDialogElement | null>;
 }) {
     return (
         <header className="p-4 border-b bg-white flex justify-between items-center border-white shadow-sm">

@@ -12,7 +12,7 @@ function App() {
     // HTML에서 parse한 실제 수업 정보 객체들을 모아두는 배열 (<Timetable>에 전달)
     const [parsedClasses, setParsedClasses] = useState<ClassInfo[]>([]);
     // <dialog> 태그 Ref
-    const dialogRef = useRef<HTMLDialogElement>(null!);
+    const dialogRef = useRef<HTMLDialogElement>(null);
 
     // HTML parse 요청 함수
     const handleImport = (text: string) => {
