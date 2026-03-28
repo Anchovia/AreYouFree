@@ -2,7 +2,12 @@ import { forwardRef, useRef, useState } from "react";
 
 interface EverytimeImageImportModalProps {
     existingSchedules: string[];
-    onImport: (file: File, startHour: number, scheduleName: string) => void;
+    onImport: (
+        file: File,
+        startHour: number,
+        startDay: number,
+        scheduleName: string
+    ) => void;
 }
 
 const EverytimeImageImportModal = forwardRef<
@@ -11,6 +16,7 @@ const EverytimeImageImportModal = forwardRef<
 >(({ existingSchedules, onImport }, ref) => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [startHour, setStartHour] = useState<number>(9);
+    const [startDay, setStartDay] = useState<number>(5);
     // 1. 이름 입력을 위한 상태 추가
     const [scheduleName, setScheduleName] = useState<string>("");
 
@@ -34,6 +40,7 @@ const EverytimeImageImportModal = forwardRef<
         img.onload = () => {
             URL.revokeObjectURL(imageUrl); // 메모리 해제
 
+            /*
             // 가로 사이즈가 딱 960px인지 확인!
             if (img.naturalWidth !== 960) {
                 alert(
@@ -45,6 +52,7 @@ const EverytimeImageImportModal = forwardRef<
                 setSelectedFile(null);
                 return;
             }
+            */
 
             // ✨ 960px 검사를 무사히 통과했을 때만 파일 상태를 저장합니다!
             setSelectedFile(file);
@@ -77,26 +85,25 @@ const EverytimeImageImportModal = forwardRef<
             alert("이미지 파일을 먼저 선택해주세요.");
             return;
         }
-        if (!scheduleName.trim()) {
-            alert("시간표 이름(친구 이름)을 입력해주세요.");
-            return;
-        }
-
-        // 2. 전달할 때 이름도 같이 넘김
-        onImport(selectedFile, startHour, scheduleName.trim());
-        resetState();
 
         const trimmedName = scheduleName.trim();
+
         if (!trimmedName) {
             alert("시간표 이름(친구 이름)을 입력해주세요.");
             return;
         }
 
-        // 🚨 3. 중복 검사 핵심 로직 추가!
+        // 중복 이름이면 import 실행 전에 차단
         if (existingSchedules.includes(trimmedName)) {
             alert("이미 존재하는 이름입니다. 다른 이름을 입력해주세요!");
-            return; // 튕겨내고 함수 종료! (모달 안 닫힘)
+            return;
         }
+
+        // 모든 검증 통과 후에만 import 실행
+        onImport(selectedFile, startHour, startDay, trimmedName);
+
+        // 상태 초기화는 마지막에 1회만
+        resetState();
     };
 
     const handleCloseClick = () => {
@@ -184,7 +191,29 @@ const EverytimeImageImportModal = forwardRef<
                     </div>
                 </div>
 
-                {/* --- 3. 버튼 영역 --- */}
+                {/* --- 3. 요일 목록 --- */}
+                <div className="flex flex-col gap-2">
+                    <label className="text-sm font-bold text-gray-700">
+                        요일 갯수
+                    </label>
+                    <div className="flex gap-2">
+                        {[5, 6, 7].map((day) => (
+                            <button
+                                key={day}
+                                className={`flex-1 py-2 rounded-lg font-bold text-sm transition-colors ${
+                                    startDay === day
+                                        ? "bg-blue-600 text-white"
+                                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                }`}
+                                onClick={() => setStartDay(day)}
+                            >
+                                {day}개
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* --- 4. 버튼 영역 --- */}
                 <div className="flex gap-2 mt-2">
                     <button
                         className="flex-1 py-3 font-bold bg-gray-100 rounded-xl"

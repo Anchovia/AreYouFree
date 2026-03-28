@@ -1,8 +1,22 @@
 import type { ImageClassInfo } from "../types/schedule";
+import {
+    createImageClassInfo,
+    detectDarkMode,
+    detectDayWidthFromOffset,
+    detectHorizontalBorderThickness,
+    detectHourHeightFromOffset,
+    detectOffsetXFromTopLeft,
+    detectOffsetYFromTopLeft,
+    detectVerticalBorderThickness,
+    getPixelRgb,
+    isBackgroundOrBorder,
+} from "./utils";
 
+// 에브리타임 시간표 이미지에서 수업 블록을 읽어 시간 정보로 변환
 export const analyzeEverytimeImage = (
     image: HTMLImageElement,
-    startHour: number
+    startHour: number,
+    startDay: number
 ): ImageClassInfo[] | null => {
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
@@ -14,102 +28,136 @@ export const analyzeEverytimeImage = (
     canvas.height = height;
     ctx.drawImage(image, 0, 0);
 
-    // 1. 이미지 전체의 픽셀 데이터를 한 번에 가져옴 (성능 최적화)
+    // 이미지 전체 픽셀을 한 번에 가져와 스캔 비용 최소화
     const imageData = ctx.getImageData(0, 0, width, height).data;
+    // 다크모드 분석
+    const isDarkMode = detectDarkMode(imageData, width);
+    // 좌측 시간축 너비 (월요일 시작점)
+    const OFFSET_X = detectOffsetXFromTopLeft(
+        imageData,
+        width,
+        isDarkMode,
+        5,
+        5
+    );
+    // 현재 캡처 포맷 기준 레이아웃 상수
+    const OFFSET_Y = detectOffsetYFromTopLeft(
+        imageData,
+        width,
+        height,
+        isDarkMode,
+        5,
+        5
+    );
 
-    // 2. 측정된 상수값들
-    const OFFSET_X = 60; // 좌측 시간축 너비 (월요일 시작점)
-    const OFFSET_Y = 40; // 상단 요일축 높이 (첫 교시 시작점)
-    const DAY_WIDTH = 180; // 요일별 가로 너비
-    const HOUR_HEIGHT = 80; // 1시간당 세로 높이
+    // 수직 보더 넓이
+    const VerticalBorderThickness = detectVerticalBorderThickness(
+        imageData,
+        width,
+        isDarkMode,
+        OFFSET_X
+    );
+    // 수평 보더 넓이
+    const HorizontalBorderThickness = detectHorizontalBorderThickness(
+        imageData,
+        width,
+        height,
+        isDarkMode,
+        OFFSET_Y
+    );
+
+    console.log("측정된 세로 선 두께:", VerticalBorderThickness);
+    console.log("측정된 가로 선 두께:", HorizontalBorderThickness);
+
+    // 요일별 가로 너비
+    const DAY_WIDTH = detectDayWidthFromOffset(
+        imageData,
+        width,
+        isDarkMode,
+        OFFSET_X,
+        VerticalBorderThickness
+    );
+    // 1시간당 세로 높이
+    const HOUR_HEIGHT = detectHourHeightFromOffset(
+        imageData,
+        width,
+        height,
+        isDarkMode,
+        OFFSET_Y,
+        HorizontalBorderThickness
+    );
 
     const results: ImageClassInfo[] = [];
 
-    // 월(0) ~ 금(4) 탐색
-    for (let day = 0; day < 5; day++) {
-        // 각 요일 칸의 정중앙 X 좌표
-        const scanX = Math.floor(OFFSET_X + day * DAY_WIDTH + DAY_WIDTH / 2);
+    // 월(0) ~ 금(4) 각 열을 세로 스캔
+    for (let day = 0; day < startDay; day++) {
+        const scanX = Math.floor(OFFSET_X + day * DAY_WIDTH + DAY_WIDTH * 0.95);
 
         let isClassOngoing = false;
         let classStartPixelY = 0;
         let currentColor = "";
 
-        // Y축을 위에서 아래로 1픽셀 단위 스캔
         for (let y = OFFSET_Y; y < height; y++) {
-            // 1차원 배열에서 (scanX, y) 좌표의 RGB 값 추출
-            const pixelIndex = (y * width + scanX) * 4;
-            const r = imageData[pixelIndex];
-            const g = imageData[pixelIndex + 1];
-            const b = imageData[pixelIndex + 2];
+            // 현재 스캔 좌표의 픽셀 RGB 값을 가져옴
+            const { r, g, b } = getPixelRgb(imageData, width, scanX, y);
+            // 현재 픽셀이 배경/보더인지(수업 블록이 아닌지) 판별
+            const isBgOrBorder = isBackgroundOrBorder(r, g, b, isDarkMode);
 
-            // 배경색(흰색) 및 보더색(회색) 판별 (JPEG 압축 노이즈 고려해 여유값 부여)
-            const isWhite = r > 245 && g > 245 && b > 245;
-            const isBorder =
-                r > 220 && g > 220 && b > 220 && Math.abs(r - g) < 5; // 무채색 옅은 회색
-
-            if (!isWhite && !isBorder) {
-                // 색상이 있는 픽셀 (수업 블록) 발견
+            if (!isBgOrBorder) {
+                // 배경이 아닌 첫 픽셀을 수업 시작점으로 기록
                 if (!isClassOngoing) {
                     isClassOngoing = true;
                     classStartPixelY = y;
                     currentColor = `rgb(${r},${g},${b})`;
                 }
-            } else {
-                // 흰색 또는 보더 발견 (수업 종료 또는 공강)
-                if (isClassOngoing) {
-                    isClassOngoing = false;
-                    const classEndPixelY = y;
-
-                    // ✨ [수정된 부분 1] 5분 단위 스냅 적용
-                    const rawStartMinutes =
-                        ((classStartPixelY - OFFSET_Y) / HOUR_HEIGHT) * 60;
-                    const rawEndMinutes =
-                        ((classEndPixelY - OFFSET_Y) / HOUR_HEIGHT) * 60;
-
-                    const snappedStart = Math.round(rawStartMinutes / 5) * 5;
-                    const snappedEnd = Math.round(rawEndMinutes / 5) * 5;
-
-                    const sHour = Math.floor(startHour + snappedStart / 60);
-                    const sMin = snappedStart % 60;
-                    const eHour = Math.floor(startHour + snappedEnd / 60);
-                    const eMin = snappedEnd % 60;
-
-                    results.push({
+            } else if (isClassOngoing) {
+                // 다시 배경을 만나면 수업 종료
+                isClassOngoing = false;
+                const classEndPixelY = y;
+                results.push(
+                    createImageClassInfo(
                         day,
-                        startTime: `${sHour.toString().padStart(2, "0")}:${sMin.toString().padStart(2, "0")}`,
-                        endTime: `${eHour.toString().padStart(2, "0")}:${eMin.toString().padStart(2, "0")}`,
-                        color: currentColor,
-                    });
-                }
+                        classStartPixelY,
+                        classEndPixelY,
+                        OFFSET_Y,
+                        HOUR_HEIGHT,
+                        startHour,
+                        currentColor
+                    )
+                );
             }
         }
 
-        // 예외 처리: 만약 이미지가 수업 블록 중간에서 딱 잘렸을 경우 (끝나는 여백이 없을 때)
+        // 이미지 하단에서 수업이 끝나는 케이스 보정
         if (isClassOngoing) {
-            const classEndPixelY = height; // 이미지 맨 밑바닥을 종료 지점으로 간주
-
-            // ✨ [수정된 부분 2] 5분 단위 스냅 적용
-            const rawStartMinutes =
-                ((classStartPixelY - OFFSET_Y) / HOUR_HEIGHT) * 60;
-            const rawEndMinutes =
-                ((classEndPixelY - OFFSET_Y) / HOUR_HEIGHT) * 60;
-
-            const snappedStart = Math.round(rawStartMinutes / 5) * 5;
-            const snappedEnd = Math.round(rawEndMinutes / 5) * 5;
-
-            const sHour = Math.floor(startHour + snappedStart / 60);
-            const sMin = snappedStart % 60;
-            const eHour = Math.floor(startHour + snappedEnd / 60);
-            const eMin = snappedEnd % 60;
-
-            results.push({
-                day,
-                startTime: `${sHour.toString().padStart(2, "0")}:${sMin.toString().padStart(2, "0")}`,
-                endTime: `${eHour.toString().padStart(2, "0")}:${eMin.toString().padStart(2, "0")}`,
-                color: currentColor,
-            });
+            const classEndPixelY = height;
+            results.push(
+                createImageClassInfo(
+                    day,
+                    classStartPixelY,
+                    classEndPixelY,
+                    OFFSET_Y,
+                    HOUR_HEIGHT,
+                    startHour,
+                    currentColor
+                )
+            );
         }
     }
+
+    // 디버그 로그
+    console.group("에브리타임 이미지 분석 결과");
+    console.log(
+        `감지된 테마: ${isDarkMode ? "다크 모드 🌙" : "라이트 모드 ☀️"}`
+    );
+    console.log(
+        `최좌측 최상단 Grid 오른쪽 보더 시작점(OFFSET_X): ${OFFSET_X}px`
+    );
+    console.log(`최좌측 최상단 Grid 하단 보더 시작점(OFFSET_Y): ${OFFSET_Y}px`);
+    console.log(`사용된 1시간 기준 넓이(DAY_WIDTH): ${DAY_WIDTH}px`);
+    console.log(`사용된 1시간 기준 높이(HOUR_HEIGHT): ${HOUR_HEIGHT}px`);
+    console.log(results);
+    console.groupEnd();
 
     return results;
 };

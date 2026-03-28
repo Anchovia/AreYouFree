@@ -26,13 +26,14 @@ function App() {
     const handleImageImport = (
         file: File,
         startHour: number,
+        startDay: number,
         scheduleName: string
     ) => {
         const imageUrl = URL.createObjectURL(file);
         const img = new Image();
 
         img.onload = () => {
-            const results = analyzeEverytimeImage(img, startHour);
+            const results = analyzeEverytimeImage(img, startHour, startDay);
 
             if (results && results.length > 0) {
                 // 받아온 이름을 그대로 사용!
@@ -95,7 +96,6 @@ function App() {
                 />
             </main>
             <Footer />
-            {/* 모달 */}
             <EverytimeImageImportModal
                 ref={dialogRef}
                 existingSchedules={schedules}
