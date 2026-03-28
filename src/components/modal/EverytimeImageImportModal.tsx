@@ -1,14 +1,14 @@
 import { forwardRef, useRef, useState } from "react";
 
 interface EverytimeImageImportModalProps {
-    // onImport에 이름(scheduleName) 파라미터가 추가되었습니다!
+    existingSchedules: string[];
     onImport: (file: File, startHour: number, scheduleName: string) => void;
 }
 
 const EverytimeImageImportModal = forwardRef<
     HTMLDialogElement,
     EverytimeImageImportModalProps
->(({ onImport }, ref) => {
+>(({ existingSchedules, onImport }, ref) => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [startHour, setStartHour] = useState<number>(9);
     // 1. 이름 입력을 위한 상태 추가
@@ -18,16 +18,51 @@ const EverytimeImageImportModal = forwardRef<
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            if (!file.type.startsWith("image/")) {
-                alert("이미지 파일만 업로드 가능합니다.");
+        if (!file) return;
+
+        // 1. 파일 타입 검사
+        if (!file.type.startsWith("image/")) {
+            alert("이미지 파일만 업로드 가능합니다.");
+            return;
+        }
+
+        // 2. 이미지 크기 검사를 위해 임시 객체 생성
+        const imageUrl = URL.createObjectURL(file);
+        const img = new Image();
+
+        // 3. 이미지가 로드되었을 때 사이즈를 체크합니다 (비동기 처리)
+        img.onload = () => {
+            URL.revokeObjectURL(imageUrl); // 메모리 해제
+
+            // 가로 사이즈가 딱 960px인지 확인!
+            if (img.naturalWidth !== 960) {
+                alert(
+                    `에브리타임 정규 스크린샷 규격이 아닙니다.\n(가로 960px 이미지만 가능, 현재: ${img.naturalWidth}px)`
+                );
+
+                // 에러 시 input 요소 초기화 및 파일 선택 해제
+                if (fileInputRef.current) fileInputRef.current.value = "";
+                setSelectedFile(null);
                 return;
             }
+
+            // ✨ 960px 검사를 무사히 통과했을 때만 파일 상태를 저장합니다!
             setSelectedFile(file);
 
-            // 파일이 선택되었는데 이름이 비어있다면, 편의상 파일 이름을 기본값으로 넣어줍니다 (선택사항)
-            // if (!scheduleName) setScheduleName(file.name.split('.')[0]);
-        }
+            // 이름 자동 완성
+            if (!scheduleName) setScheduleName(file.name.split(".")[0]);
+        };
+
+        // 이미지 읽기 실패 시 예외 처리
+        img.onerror = () => {
+            URL.revokeObjectURL(imageUrl);
+            alert("이미지 파일을 읽는 중 오류가 발생했습니다.");
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            setSelectedFile(null);
+        };
+
+        // 4. src를 넣어주면 이때부터 브라우저가 사이즈 체크를 시작합니다
+        img.src = imageUrl;
     };
 
     const resetState = () => {
@@ -50,6 +85,18 @@ const EverytimeImageImportModal = forwardRef<
         // 2. 전달할 때 이름도 같이 넘김
         onImport(selectedFile, startHour, scheduleName.trim());
         resetState();
+
+        const trimmedName = scheduleName.trim();
+        if (!trimmedName) {
+            alert("시간표 이름(친구 이름)을 입력해주세요.");
+            return;
+        }
+
+        // 🚨 3. 중복 검사 핵심 로직 추가!
+        if (existingSchedules.includes(trimmedName)) {
+            alert("이미 존재하는 이름입니다. 다른 이름을 입력해주세요!");
+            return; // 튕겨내고 함수 종료! (모달 안 닫힘)
+        }
     };
 
     const handleCloseClick = () => {
