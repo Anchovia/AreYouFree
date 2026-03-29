@@ -52,12 +52,15 @@ export default function ScheduleHeader({
                 </article>
                 {/* 버튼 */}
                 <nav className="flex gap-3">
-                    <Button
-                        text="시간표 추가"
-                        buttonColor="gray"
-                        buttonType="add"
-                        onClick={() => setOpenUpload(!openUpload)}
-                    />
+                    {schedules.length > 0 && (
+                        <Button
+                            text="시간표 추가"
+                            buttonColor="gray"
+                            buttonType="add"
+                            onClick={() => setOpenUpload(!openUpload)}
+                        />
+                    )}
+
                     <Button
                         text={showFreeTime ? "공강 숨기기" : "공강 보기"}
                         buttonColor={showFreeTime ? "red" : "green"}
@@ -69,7 +72,7 @@ export default function ScheduleHeader({
             {openUpload && (
                 <label
                     onClick={() => dialogRef.current?.showModal()}
-                    className="flex flex-col gap-3 items-center justify-center w-full h-60 border-2 border-gray-300 border-dashed rounded-2xl"
+                    className="flex flex-col gap-4 items-center justify-center w-full h-60 border-2 border-gray-300 border-dashed rounded-2xl"
                 >
                     <FiUpload className="size-16 p-3 text-gray-500 bg-gray-200 rounded-2xl" />
                     <div className="text-center">
