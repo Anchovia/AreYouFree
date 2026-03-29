@@ -6,17 +6,18 @@ interface TimetableProps {
     showFreeTime: boolean;
 }
 
-// 사람(fId)별로 적용할 파스텔 톤 색상 배열
-const FRIEND_COLORS = [
-    "bg-blue-100 border-blue-400 text-blue-900",
-    "bg-rose-100 border-rose-400 text-rose-900",
-    "bg-emerald-100 border-emerald-400 text-emerald-900",
-    "bg-amber-100 border-amber-400 text-amber-900",
-    "bg-purple-100 border-purple-400 text-purple-900",
+// 요청하신 사진(2번째)의 파스텔 톤 헥스 색상을 적용했습니다.
+const FRIEND_COLORS_HEX = [
+    "#dbeafe", // 파랑 (blue-100)
+    "#fce7f3", // 분홍 (pink-100)
+    "#dcfce7", // 초록 (green-100)
+    "#fef3c7", // 노랑 (yellow-100)
+    "#f3e8ff", // 보라 (purple-100)
 ];
 
+const ALL_DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+
 export default function Timetable({ classes, showFreeTime }: TimetableProps) {
-    const days = ["월요일", "화요일", "수요일", "목요일", "금요일"];
     const startHour = 7;
     const endHour = 23;
     const hours = Array.from(
@@ -25,18 +26,24 @@ export default function Timetable({ classes, showFreeTime }: TimetableProps) {
     );
     const hourHeight = 60;
 
-    // 친구(인원) 기준 고유 목록 (가로 배치용)
+    // 1. 최대 요일(day) 값을 찾아 표시할 요일의 개수를 결정합니다.
+    const maxDay = useMemo(() => {
+        return classes.reduce((max, c) => Math.max(max, c.day), 4);
+    }, [classes]);
+
+    const displayDays = ALL_DAYS.slice(0, Math.min(maxDay + 1, 7));
+    const numCols = displayDays.length;
+
+    // 친구(인원) 기준 고유 목록
     const uniqueFriends = useMemo(() => {
         return Array.from(new Set(classes.map((c) => c.fId)));
     }, [classes]);
 
-    // fId를 기준으로 고유한 색상을 반환하는 함수!
-    const getFriendColor = (fId: string) => {
+    const getFriendColorHex = (fId: string) => {
         const index = uniqueFriends.indexOf(fId);
-        return FRIEND_COLORS[index % FRIEND_COLORS.length];
+        return FRIEND_COLORS_HEX[index % FRIEND_COLORS_HEX.length];
     };
 
-    // 시간(소수점)을 "00시 00분" 텍스트로 예쁘게 바꿔주는 헬퍼 함수
     const formatTimeText = (time: number) => {
         const h = Math.floor(time);
         const m = Math.round((time - h) * 60);
@@ -46,7 +53,6 @@ export default function Timetable({ classes, showFreeTime }: TimetableProps) {
     const renderFreeTimeOverlays = (dayIdx: number) => {
         if (!showFreeTime || uniqueFriends.length === 0) return null;
 
-        // 1. 해당 요일의 수업들을 시작 시간 기준으로 오름차순 정렬합니다.
         const dayClasses = classes
             .filter((c) => c.day === dayIdx)
             .sort((a, b) => a.start - b.start);
@@ -54,7 +60,6 @@ export default function Timetable({ classes, showFreeTime }: TimetableProps) {
         const freeBlocks: { start: number; end: number }[] = [];
         let currentTime = startHour;
 
-        // 2. 수업들을 순회하며 빈 시간을 찾아 덩어리(Block)로 묶습니다.
         for (const c of dayClasses) {
             if (currentTime < c.start) {
                 freeBlocks.push({ start: currentTime, end: c.start });
@@ -62,123 +67,122 @@ export default function Timetable({ classes, showFreeTime }: TimetableProps) {
             currentTime = Math.max(currentTime, c.end);
         }
 
-        // 3. 마지막 수업이 끝난 후부터 자정(endHour) 전까지의 공강 추가
         if (currentTime < endHour) {
             freeBlocks.push({ start: currentTime, end: endHour });
         }
 
-        // 4. 합쳐진 공강 덩어리 중 1시간 이상인 것만 화면에 그립니다!
         return freeBlocks
-            .filter((block) => block.end - block.start >= 1) // ✨ 이 부분이 추가되었습니다!
-            .map((block, idx) => {
-                return (
-                    <div
-                        key={`free-${idx}`}
-                        className="absolute w-full bg-green-200/50 pointer-events-none z-10 flex flex-col items-center justify-center border-2 border-green-400 box-border rounded-md shadow-sm"
-                        style={{
-                            top: `${(block.start - startHour) * hourHeight}px`,
-                            height: `${(block.end - block.start) * hourHeight}px`,
-                        }}
-                    >
-                        {/* 공강 시간 텍스트 뱃지 */}
-                        <div className="bg-white/80 px-3 py-1.5 rounded-lg text-center shadow-sm backdrop-blur-sm">
-                            <span className="block text-green-800 font-extrabold text-sm border-b border-green-200 pb-0.5 mb-0.5">
-                                {days[dayIdx]}
-                            </span>
-                            <span className="block text-green-700 font-bold text-xs">
-                                {formatTimeText(block.start)} ~{" "}
-                                {formatTimeText(block.end)}
-                            </span>
-                        </div>
+            .filter((block) => block.end - block.start >= 1)
+            .map((block, idx) => (
+                <div
+                    key={`free-${idx}`}
+                    className="absolute z-10 rounded-md border border-green-300/60 bg-green-100/40 flex flex-col items-center justify-center pointer-events-none"
+                    style={{
+                        top: `${(block.start - startHour) * hourHeight}px`,
+                        height: `${(block.end - block.start) * hourHeight}px`,
+                        left: "4px",
+                        right: "4px",
+                    }}
+                >
+                    <div className="bg-background/80 px-2 py-1 rounded-md text-center shadow-sm backdrop-blur-sm">
+                        <span className="block text-green-700 font-bold text-xs">
+                            {formatTimeText(block.start)} ~{" "}
+                            {formatTimeText(block.end)}
+                        </span>
                     </div>
-                );
-            });
+                </div>
+            ));
     };
 
     return (
-        <div
-            id="timetable-capture-area"
-            className="flex-1 overflow-auto bg-white rounded-xl relative"
-        >
-            <div className="flex border border-gray-200">
-                {/* Y축 (시간) */}
-                <div className="w-16 shrink-0 bg-gray-50 border-r border-gray-200 flex flex-col sticky left-0 z-20">
-                    <div className="h-12 border-b border-gray-200 bg-gray-50/90 backdrop-blur sticky top-0 z-30"></div>
-                    {hours.slice(0, -1).map((h) => (
+        <div id="timetable-capture-area" className="flex-1 overflow-auto p-4">
+            <div className="bg-card rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                {/* 헤더 행 (시간 + 요일) */}
+                <div
+                    className="grid border-b border-gray-200 bg-gray-50"
+                    style={{
+                        gridTemplateColumns: `60px repeat(${numCols}, minmax(0, 1fr))`,
+                    }}
+                >
+                    <div className="p-3 text-center text-xs font-medium text-muted-foreground">
+                        시간
+                    </div>
+                    {displayDays.map((day) => (
                         <div
-                            key={h}
-                            className="flex border-b border-gray-200"
-                            style={{ height: `${hourHeight}px` }}
+                            key={day}
+                            className="p-3 text-center text-sm font-semibold text-foreground border-l border-gray-200"
                         >
-                            <span className="w-full flex justify-center items-center text-xs font-semibold text-gray-500">
-                                {String(h).padStart(2, "0")}시
-                            </span>
+                            {day}
                         </div>
                     ))}
                 </div>
 
-                {/* X축 (요일) 및 수업 블록 */}
-                <div className="flex-1 flex">
-                    {days.map((day, dIdx) => (
-                        <div
-                            key={day}
-                            className="flex-1 flex flex-col min-w-35 border-r border-gray-100 relative group"
-                        >
-                            <div className="h-12 border-b border-gray-200 bg-white/90 backdrop-blur flex items-center justify-center font-bold text-gray-700 sticky top-0 z-30 shadow-sm">
-                                {day}
-                            </div>
-
+                {/* 본문 행 */}
+                <div
+                    className="grid"
+                    style={{
+                        gridTemplateColumns: `60px repeat(${numCols}, minmax(0, 1fr))`,
+                    }}
+                >
+                    {/* Y축 (시간) */}
+                    <div className="border-r border-gray-200 bg-card">
+                        {hours.slice(0, -1).map((h) => (
                             <div
-                                className="relative flex-1"
-                                style={{
-                                    height: `${(endHour - startHour) * hourHeight}px`,
-                                }}
+                                key={h}
+                                className="h-15 flex items-start justify-center pt-1 text-xs text-muted-foreground border-b border-gray-200"
                             >
-                                {hours.slice(0, -1).map((_, i) => (
-                                    <div
-                                        key={i}
-                                        className="absolute w-full border-b border-gray-100 border-dashed"
-                                        style={{
-                                            top: `${(i + 1) * hourHeight}px`,
-                                            height: "1px",
-                                        }}
-                                    />
-                                ))}
-
-                                {renderFreeTimeOverlays(dIdx)}
-
-                                {classes
-                                    .filter((c) => c.day === dIdx)
-                                    .map((c, i) => {
-                                        const fIndex = uniqueFriends.indexOf(
-                                            c.fId
-                                        );
-                                        const widthPercent =
-                                            100 / uniqueFriends.length;
-
-                                        return (
-                                            <div
-                                                key={`${c.fId}-${i}`}
-                                                className={`absolute border-l-4 rounded-sm p-1.5 overflow-hidden transition-all duration-300 hover:z-20 hover:shadow-md cursor-default z-10 ${getFriendColor(c.fId)}`}
-                                                style={{
-                                                    top: `${(c.start - startHour) * hourHeight}px`,
-                                                    height: `${(c.end - c.start) * hourHeight}px`,
-                                                    left: `${fIndex * widthPercent}%`,
-                                                    width: `${widthPercent}%`,
-                                                    boxShadow:
-                                                        "inset 0 0 0 1px rgba(0,0,0,0.05)",
-                                                }}
-                                                title={`[${c.fId}]`}
-                                            >
-                                                {/* 유저 이름 */}
-                                                <div className="font-bold text-[10px] sm:text-[11px] leading-tight break-all line-clamp-2">
-                                                    {c.fId}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                                {h}:00
                             </div>
-                            <div className="absolute inset-0 bg-gray-50 opacity-0 group-hover:opacity-30 pointer-events-none z-0 transition-opacity"></div>
+                        ))}
+                    </div>
+
+                    {/* X축 (요일별 컬럼) */}
+                    {displayDays.map((_, dIdx) => (
+                        <div
+                            key={`col-${dIdx}`}
+                            className="relative border-l border-gray-200 border-r-0"
+                        >
+                            {/* 배경 그리드 선 */}
+                            {hours.slice(0, -1).map((_, i) => (
+                                <div
+                                    key={`grid-${i}`}
+                                    className="h-15 border-b border-gray-200"
+                                ></div>
+                            ))}
+
+                            {/* 공강 시간 렌더링 */}
+                            {renderFreeTimeOverlays(dIdx)}
+
+                            {/* 수업 블록 렌더링 (★수정된 부분★) */}
+                            {classes
+                                .filter((c) => c.day === dIdx)
+                                .map((c, i) => {
+                                    // 너비 분할 계산 로직(`widthPercent`, `fIndex`)을 모두 제거했습니다.
+                                    // DOM 순서대로 알아서 포개집니다.
+
+                                    return (
+                                        <div
+                                            key={`${c.fId}-${i}`}
+                                            // className에 `absolute`, `z-10`, `rounded-lg` 등을 유지.
+                                            // `hover:z-20`과 `hover:shadow-lg`를 넣어 아래에 깔린 요소를 마우스 오버 시 위로 올리게 처리했습니다.
+                                            className=" absolute rounded-lg px-2 py-1.5 overflow-hidden shadow-sm border border-transparent hover:border-primary/30 transition-all cursor-default group z-10 hover:z-20 hover:shadow-lg"
+                                            style={{
+                                                top: `${(c.start - startHour) * hourHeight}px`,
+                                                height: `${(c.end - c.start) * hourHeight}px`,
+                                                // ★변경★ 너비를 꽉 채우고(양 옆에 작은 여백) 계산식 제거
+                                                left: "4px",
+                                                right: "4px",
+                                                backgroundColor:
+                                                    getFriendColorHex(c.fId),
+                                            }}
+                                            title={`[${c.fId}]`}
+                                        >
+                                            <div className="text-xs font-medium text-foreground/80 truncate">
+                                                {c.fId}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                         </div>
                     ))}
                 </div>

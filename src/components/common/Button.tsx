@@ -1,4 +1,7 @@
-type ButtonColor = "default" | "accent" | "green";
+import { FiEye, FiPlus, FiTrash } from "react-icons/fi";
+
+type ButtonColor = "default" | "red" | "green" | "gray";
+type ButtonType = "delete" | "add" | "vision";
 
 interface ButtonProps {
     htmlFor?: string;
@@ -6,13 +9,15 @@ interface ButtonProps {
     buttonColor?: ButtonColor;
     onClick?: () => void;
     type?: "button" | "submit" | "reset";
+    buttonType?: ButtonType;
 }
 
 // variant 별로 적용될 Tailwind 클래스 맵핑
 const buttonStyles: Record<ButtonColor, string> = {
-    default: "bg-blue-500 text-white",
-    accent: "bg-red-500 text-white",
-    green: "bg-lime-500 text-white",
+    default: "border-blue-300 text-blue-700",
+    red: "border-red-300 text-red-600",
+    green: "border-lime-400 text-lime-700",
+    gray: "border-gray-300 text-gray-700",
 };
 
 export default function Button({
@@ -21,9 +26,10 @@ export default function Button({
     onClick,
     buttonColor = "default",
     type = "button",
+    buttonType = "add",
 }: ButtonProps) {
     const commonStyle =
-        "flex-1 flex-none text-center px-4 py-2 rounded-lg text-sm font-bold cursor-pointer transition-colors";
+        "flex items-center gap-2 flex-1 flex-none text-center px-3 py-1.5 rounded-lg text-base font-bold cursor-pointer border transition-colors";
     return htmlFor ? (
         <label
             htmlFor={htmlFor}
@@ -37,6 +43,9 @@ export default function Button({
             onClick={onClick}
             className={`${buttonStyles[buttonColor]} ${commonStyle}`}
         >
+            {buttonType === "delete" && <FiTrash />}
+            {buttonType === "vision" && <FiEye />}
+            {buttonType === "add" && <FiPlus />}
             {text}
         </button>
     );

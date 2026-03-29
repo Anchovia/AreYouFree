@@ -3,6 +3,7 @@ import Footer from "./components/layout/Footer";
 import Header from "./components/layout/Header";
 import EverytimeImageImportModal from "./components/modal/EverytimeImageImportModal";
 import Schedule from "./components/schedule/schedule";
+import ScheduleHeader from "./components/schedule/ScheduleHeader";
 import type { ClassInfo } from "./types/schedule";
 import { analyzeEverytimeImage } from "./utils/analyze";
 import { timeStringToNumber } from "./utils/utils";
@@ -79,16 +80,24 @@ function App() {
     }, [parsedClasses, schedules]);
 
     return (
-        <div className="flex flex-col bg-stroke min-h-screen">
+        <div className="flex flex-col bg-gray-50 min-h-screen">
             <Header dialogRef={dialogRef} onReset={handleResetAll} />
-            <main className="p-10 flex-1 mx-auto w-full">
-                <Schedule
-                    schedules={schedules}
-                    parsedClasses={parsedClasses}
-                    showFreeTime={showFreeTime}
-                    setShowFreeTime={setShowFreeTime}
-                    onRemoveSchedule={handleRemoveSchedule}
-                />
+            <main className="px-4 py-6 flex-1 w-full">
+                <div className="mx-auto max-w-2/3 flex flex-col gap-6">
+                    <ScheduleHeader
+                        dialogRef={dialogRef}
+                        schedules={schedules}
+                        onRemoveSchedule={handleRemoveSchedule}
+                        showFreeTime={showFreeTime}
+                        onToggleFreeTime={() =>
+                            setShowFreeTime((prev) => !prev)
+                        }
+                    />
+                    <Schedule
+                        parsedClasses={parsedClasses}
+                        showFreeTime={showFreeTime}
+                    />
+                </div>
             </main>
             <Footer />
             <EverytimeImageImportModal

@@ -1,3 +1,5 @@
+import { FaGithub } from "react-icons/fa";
+import { FiCalendar } from "react-icons/fi";
 import Button from "../common/Button";
 
 interface HeaderProps {
@@ -5,22 +7,26 @@ interface HeaderProps {
     onReset: () => void; // 부모로부터 받을 초기화 함수
 }
 
-export default function Header({ dialogRef, onReset }: HeaderProps) {
+export default function Header({ onReset }: HeaderProps) {
     return (
-        <header className="p-4 border-b bg-white flex justify-between items-center border-white shadow-sm ">
-            <h1>너 시간 돼?</h1>
-            <nav className="flex gap-4">
-                <Button
-                    text="모든 데이터 초기화"
-                    type="button"
-                    buttonColor="accent"
-                    onClick={onReset}
-                />
-                <Button
-                    text="시간표 추가하기"
-                    onClick={() => dialogRef.current?.showModal()}
-                />
-            </nav>
+        <header className="p-4 border-b bg-white border-white shadow-sm ">
+            <div className="flex justify-between items-center mx-auto max-w-2/3">
+                <span className="flex items-center gap-2">
+                    <FiCalendar className="size-9 p-2 bg-blue-100 rounded-2xl text-blue-500" />
+                    <h1>너 시간 돼?</h1>
+                </span>
+                <nav className="flex gap-5 items-center">
+                    <a href="https://github.com/Anchovia/are-you-free">
+                        <FaGithub className="size-8 text-gray-700" />
+                    </a>
+                    <Button
+                        text="모든 데이터 초기화"
+                        type="button"
+                        buttonColor="red"
+                        onClick={onReset}
+                    />
+                </nav>
+            </div>
         </header>
     );
 }

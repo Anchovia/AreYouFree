@@ -1,30 +1,17 @@
 import type { ClassInfo } from "../../types/schedule";
-import ScheduleHeader from "./ScheduleHeader";
 import Timetable from "./Timetable";
 
 interface ScheduleProps {
-    schedules: string[];
     parsedClasses: ClassInfo[];
     showFreeTime: boolean;
-    setShowFreeTime: React.Dispatch<React.SetStateAction<boolean>>;
-    onRemoveSchedule: (name: string) => void;
 }
 
 export default function Schedule({
-    schedules,
     parsedClasses,
     showFreeTime,
-    setShowFreeTime,
-    onRemoveSchedule,
 }: ScheduleProps) {
     return (
-        <section className="flex flex-col gap-4 bg-white rounded-3xl shadow-lg min-h-175 p-6 max-w-10/12 mx-auto">
-            <ScheduleHeader
-                schedules={schedules}
-                onRemoveSchedule={onRemoveSchedule}
-                showFreeTime={showFreeTime}
-                onToggleFreeTime={() => setShowFreeTime((prev) => !prev)}
-            />
+        <section className="flex flex-col bg-white rounded-3xl shadow-lg min-h-175 p-6">
             {/* 시간표 표시 부분 */}
             {parsedClasses.length > 0 ? (
                 <Timetable

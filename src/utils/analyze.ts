@@ -83,7 +83,7 @@ export const analyzeEverytimeImage = async (
     );
 
     // 날짜 갯수
-    const maxDay = Math.trunc((width - OFFSET_X) / DAY_WIDTH);
+    const maxDay = Math.round((width - OFFSET_X) / DAY_WIDTH);
 
     let startHour = 9; // OCR 실패 시 사용할 기본값
     try {
