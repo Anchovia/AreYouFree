@@ -29,7 +29,7 @@ export default function Button({
     buttonType = "add",
 }: ButtonProps) {
     const commonStyle =
-        "flex items-center gap-2 flex-1 flex-none text-center px-3 py-1.5 rounded-lg text-base font-bold cursor-pointer border transition-colors";
+        "flex items-center gap-1 flex-1 flex-none text-center px-3 py-1.5 rounded-lg  font-bold cursor-pointer border transition-colors text-sm lg:text-base";
     return htmlFor ? (
         <label
             htmlFor={htmlFor}

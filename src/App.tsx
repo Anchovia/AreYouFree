@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import Footer from "./components/layout/Footer";
 import Header from "./components/layout/Header";
-import EverytimeImageImportModal from "./components/modal/EverytimeImageImportModal";
 import Schedule from "./components/schedule/schedule";
 import ScheduleHeader from "./components/schedule/ScheduleHeader";
 import type { ClassInfo } from "./types/schedule";
@@ -82,29 +81,26 @@ function App() {
     return (
         <div className="flex flex-col bg-gray-50 min-h-screen">
             <Header dialogRef={dialogRef} onReset={handleResetAll} />
-            <main className="px-4 py-6 flex-1 w-full">
-                <div className="mx-auto max-w-2/3 flex flex-col gap-6">
+            <main className="px-4 py-4 lg:py-6 flex-1 w-full">
+                <div className="mx-auto w-full lg:max-w-2/3 flex flex-col gap-4 lg:gap-6">
                     <ScheduleHeader
-                        dialogRef={dialogRef}
                         schedules={schedules}
                         onRemoveSchedule={handleRemoveSchedule}
                         showFreeTime={showFreeTime}
                         onToggleFreeTime={() =>
                             setShowFreeTime((prev) => !prev)
                         }
+                        onImport={handleImageImport}
                     />
                     <Schedule
                         parsedClasses={parsedClasses}
                         showFreeTime={showFreeTime}
+                        schedules={schedules}
+                        onImport={handleImageImport}
                     />
                 </div>
             </main>
             <Footer />
-            <EverytimeImageImportModal
-                ref={dialogRef}
-                existingSchedules={schedules}
-                onImport={handleImageImport}
-            />
         </div>
     );
 }

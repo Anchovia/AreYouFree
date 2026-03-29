@@ -65,7 +65,7 @@ export const detectStartHourWithOCR = async (
     cropCanvas: HTMLCanvasElement
 ): Promise<number | null> => {
     try {
-        const worker = await createWorker("eng");
+        const worker = await createWorker("kor");
 
         await worker.setParameters({
             tessedit_char_whitelist: "0123456789",
