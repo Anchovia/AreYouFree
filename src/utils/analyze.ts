@@ -105,6 +105,7 @@ export const analyzeEverytimeImage = async (
             startHour = ocrResult;
             console.log(`✅ OCR 인식 성공! 시간표 시작 시간: ${startHour}시`);
         } else {
+            startHour = 7;
             console.warn(
                 `⚠️ OCR 인식 실패. 기본값인 ${startHour}시로 설정합니다.`
             );

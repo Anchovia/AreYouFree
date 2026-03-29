@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { FaEdit, FaTimes } from "react-icons/fa";
-import { FiImage, FiUpload, FiUsers } from "react-icons/fi";
+import {
+    FiChevronDown,
+    FiChevronUp,
+    FiImage,
+    FiUpload,
+    FiUsers,
+} from "react-icons/fi";
+import { useImageUpload } from "../../hooks/useImageUpload";
 import Button from "../common/Button";
 
 interface ScheduleHeaderProps {
@@ -8,7 +15,7 @@ interface ScheduleHeaderProps {
     onRemoveSchedule: (name: string) => void;
     showFreeTime: boolean;
     onToggleFreeTime: () => void;
-    dialogRef: React.RefObject<HTMLDialogElement | null>;
+    onImport: (file: File, scheduleName: string) => void;
 }
 
 const colors = ["border-l-purple-200", "border-l-red-100", "border-l-blue-100"];
@@ -18,40 +25,48 @@ export default function ScheduleHeader({
     onRemoveSchedule,
     showFreeTime,
     onToggleFreeTime,
-    dialogRef,
+    onImport,
 }: ScheduleHeaderProps) {
     const [openUpload, setOpenUpload] = useState(false);
+    // 💡 목록을 접고 펴는 상태 추가 (기본값: 인원이 있으면 닫아두기)
+    const [isListOpen, setIsListOpen] = useState(false);
+
+    // 훅 적용
+    const {
+        isDragging,
+        fileInputRef,
+        handleFileChange,
+        handleDragOver,
+        handleDragLeave,
+        handleDrop,
+    } = useImageUpload({
+        schedules,
+        onImport,
+        onSuccess: () => setOpenUpload(false), // 성공 시 업로드 창 닫기
+    });
+
     return (
-        <section className="flex flex-col w-full gap-6">
-            <div className="flex w-full items-center">
-                {/* 시간표 목록 (예: 시간표 1, 시간표 2)*/}
-                <article className="flex gap-2 flex-1 items-center">
-                    <span className="text-sm flex items-center gap-2 text-gray-500 font-normal">
-                        <FiUsers />
+        <section className="flex flex-col w-full gap-4 lg:gap-6">
+            <div className="flex w-full items-center justify-between">
+                {/* 인원수 표시 및 드롭다운 토글 버튼 */}
+                <button
+                    onClick={() => setIsListOpen(!isListOpen)}
+                    className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm hover:bg-gray-50 transition-colors"
+                >
+                    <span className="text-xs lg:text-sm flex items-center gap-1.5 text-gray-700 font-medium">
+                        <FiUsers className="text-gray-500" />
                         {`${schedules.length} 명`}
                     </span>
-                    <ul className="flex gap-2 flex-1">
-                        {schedules.map((name, i) => (
-                            <li
-                                key={i}
-                                className={`flex items-center px-3 py-1 rounded-full  font-medium gap-1 border-l-5  ${colors[i % colors.length]} border border-gray-300`}
-                            >
-                                <FaEdit className="text-gray-600 text-xs" />
-                                <span className="text-gray-600 text-sm">
-                                    {name}
-                                </span>
-                                <button
-                                    className="text-gray-600 text-xs cursor-pointer ml-1"
-                                    onClick={() => onRemoveSchedule(name)}
-                                >
-                                    <FaTimes />
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                </article>
-                {/* 버튼 */}
-                <nav className="flex gap-3">
+                    {/* 열림/닫힘 상태에 따라 화살표 방향 변경 */}
+                    {isListOpen ? (
+                        <FiChevronUp className="text-sm lg:text-base text-gray-400" />
+                    ) : (
+                        <FiChevronDown className="text-sm lg:text-base text-gray-400" />
+                    )}
+                </button>
+
+                {/* 버튼들 (우측 정렬) */}
+                <nav className="flex gap-2 lg:gap-3">
                     {schedules.length > 0 && (
                         <Button
                             text="시간표 추가"
@@ -69,23 +84,71 @@ export default function ScheduleHeader({
                     />
                 </nav>
             </div>
-            {openUpload && (
+
+            {/* 💡 펼쳐지는 시간표 명단 영역 */}
+            {isListOpen && schedules.length > 0 && (
+                <ul className="flex gap-2 flex-wrap">
+                    {schedules.map((name, i) => (
+                        <li
+                            key={i}
+                            className={`flex items-center px-3 py-1.5 rounded-full font-medium gap-1 border-l-4 ${
+                                colors[i % colors.length]
+                            } border border-gray-200 bg-white  transition-colors`}
+                        >
+                            <FaEdit className="text-gray-500 text-xs" />
+                            <span className="text-gray-600 text-xs">
+                                {name}
+                            </span>
+                            <button
+                                className="text-gray-400 hover:text-red-500 text-xs cursor-pointer ml-1 p-1"
+                                onClick={() => onRemoveSchedule(name)}
+                            >
+                                <FaTimes />
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+
+            {/* 드래그 앤 드롭 / 클릭 업로드 영역 */}
+            {openUpload && schedules.length > 0 && (
                 <label
-                    onClick={() => dialogRef.current?.showModal()}
-                    className="flex flex-col gap-4 items-center justify-center w-full h-60 border-2 border-gray-300 border-dashed rounded-2xl"
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    htmlFor="file-upload"
+                    className={`flex flex-col gap-3 lg:gap-4 items-center justify-center w-full h-48 lg:h-60 border-2 border-dashed rounded-2xl cursor-pointer transition-colors ${
+                        isDragging
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-300 bg-white hover:bg-gray-50"
+                    }`}
                 >
-                    <FiUpload className="size-16 p-3 text-gray-500 bg-gray-200 rounded-2xl" />
+                    <input
+                        id="file-upload"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                    />
+                    <FiUpload
+                        className={`size-12 lg:size-16 p-2 lg:p-3 rounded-2xl ${
+                            isDragging
+                                ? "text-blue-500 bg-blue-100"
+                                : "text-gray-500 bg-gray-200"
+                        }`}
+                    />
                     <div className="text-center">
-                        <p className="text-lg font-bold">
+                        <p className="text-base lg:text-lg font-bold text-gray-800">
                             시간표 이미지를 드래그하세요
                         </p>
-                        <p className="text-base text-gray-400">
+                        <p className="text-sm lg:text-base text-gray-400 mt-1 lg:mt-0">
                             또는 클릭하여 파일 선택
                         </p>
                     </div>
-                    <span className="flex gap-2 items-center text-gray-400">
+                    <span className="flex gap-2 items-center text-gray-400 mt-1 lg:mt-0">
                         <FiImage />
-                        <p className="text-sm">PNG, JPG 지원</p>
+                        <p className="text-xs lg:text-sm">PNG, JPG 지원</p>
                     </span>
                 </label>
             )}

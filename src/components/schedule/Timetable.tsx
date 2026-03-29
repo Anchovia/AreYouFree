@@ -6,7 +6,6 @@ interface TimetableProps {
     showFreeTime: boolean;
 }
 
-// 요청하신 사진(2번째)의 파스텔 톤 헥스 색상을 적용했습니다.
 const FRIEND_COLORS_HEX = [
     "#dbeafe", // 파랑 (blue-100)
     "#fce7f3", // 분홍 (pink-100)
@@ -50,10 +49,56 @@ export default function Timetable({ classes, showFreeTime }: TimetableProps) {
         return m === 0 ? `${h}시` : `${h}시 ${m}분`;
     };
 
+    // ★ 추가된 로직: 같은 사람(fId), 같은 요일(day)의 연속/겹치는 시간을 하나의 블록으로 병합
+    const mergedClasses = useMemo(() => {
+        // 병합된 결과를 담을 배열
+        const result: ClassInfo[] = [];
+
+        // 사람별로 그룹화
+        for (const fId of uniqueFriends) {
+            const personClasses = classes.filter((c) => c.fId === fId);
+
+            // 사람별로 요일 순회
+            for (let day = 0; day <= maxDay; day++) {
+                // 해당 사람의 특정 요일 수업들을 시작 시간 기준으로 정렬
+                const dayClasses = personClasses
+                    .filter((c) => c.day === day)
+                    .sort((a, b) => a.start - b.start);
+
+                if (dayClasses.length === 0) continue;
+
+                // 병합 로직
+                let currentBlock = { ...dayClasses[0] };
+
+                for (let i = 1; i < dayClasses.length; i++) {
+                    const nextBlock = dayClasses[i];
+
+                    // 다음 블록의 시작 시간이 현재 블록의 끝 시간보다 작거나 같으면 (겹치거나 연속됨)
+                    if (nextBlock.start <= currentBlock.end) {
+                        // 끝 시간을 더 큰 값으로 갱신하여 병합
+                        currentBlock.end = Math.max(
+                            currentBlock.end,
+                            nextBlock.end
+                        );
+                    } else {
+                        // 이어지지 않는다면 현재 블록을 결과에 넣고, 새로운 블록을 시작
+                        result.push(currentBlock);
+                        currentBlock = { ...nextBlock };
+                    }
+                }
+                // 마지막 남은 블록을 결과에 추가
+                result.push(currentBlock);
+            }
+        }
+        return result;
+    }, [classes, maxDay, uniqueFriends]);
+
     const renderFreeTimeOverlays = (dayIdx: number) => {
         if (!showFreeTime || uniqueFriends.length === 0) return null;
 
-        const dayClasses = classes
+        // 공강 계산은 원본 classes 혹은 mergedClasses 둘 다 상관없지만,
+        // 전체 수업을 기준으로 빈 시간을 찾는 것이므로 mergedClasses를 사용해 조금 더 최적화
+        const dayClasses = mergedClasses
             .filter((c) => c.day === dayIdx)
             .sort((a, b) => a.start - b.start);
 
@@ -76,7 +121,7 @@ export default function Timetable({ classes, showFreeTime }: TimetableProps) {
             .map((block, idx) => (
                 <div
                     key={`free-${idx}`}
-                    className="absolute z-10 rounded-md border border-green-300/60 bg-green-100/40 flex flex-col items-center justify-center pointer-events-none"
+                    className="absolute z-10 rounded-lg border border-red-300/60 bg-red-100/70 flex flex-col items-center justify-center pointer-events-none"
                     style={{
                         top: `${(block.start - startHour) * hourHeight}px`,
                         height: `${(block.end - block.start) * hourHeight}px`,
@@ -84,7 +129,7 @@ export default function Timetable({ classes, showFreeTime }: TimetableProps) {
                         right: "4px",
                     }}
                 >
-                    <div className="bg-background/80 px-2 py-1 rounded-md text-center shadow-sm backdrop-blur-sm">
+                    <div className="bg-background/80 px-2 py-1 rounded-lg text-center shadow-sm backdrop-blur-sm">
                         <span className="block text-green-700 font-bold text-xs">
                             {formatTimeText(block.start)} ~{" "}
                             {formatTimeText(block.end)}
@@ -95,8 +140,11 @@ export default function Timetable({ classes, showFreeTime }: TimetableProps) {
     };
 
     return (
-        <div id="timetable-capture-area" className="flex-1 overflow-auto p-4">
-            <div className="bg-card rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+        <div
+            id="timetable-capture-area"
+            className="flex-1 overflow-auto p-2 lg:p-4"
+        >
+            <div className="bg-card rounded-xl border border-gray-200 shadow-sm w-full lg:min-w-full">
                 {/* 헤더 행 (시간 + 요일) */}
                 <div
                     className="grid border-b border-gray-200 bg-gray-50"
@@ -104,13 +152,13 @@ export default function Timetable({ classes, showFreeTime }: TimetableProps) {
                         gridTemplateColumns: `60px repeat(${numCols}, minmax(0, 1fr))`,
                     }}
                 >
-                    <div className="p-3 text-center text-xs font-medium text-muted-foreground">
+                    <div className="sticky left-0 z-40 bg-gray-50 p-2 lg:p-3 text-center text-xs font-medium text-muted-foreground border-r border-gray-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">
                         시간
                     </div>
                     {displayDays.map((day) => (
                         <div
                             key={day}
-                            className="p-3 text-center text-sm font-semibold text-foreground border-l border-gray-200"
+                            className="p-2 lg:p-3 text-center text-xs lg:text-sm font-semibold text-foreground border-l border-gray-200 first:border-l-0"
                         >
                             {day}
                         </div>
@@ -125,11 +173,11 @@ export default function Timetable({ classes, showFreeTime }: TimetableProps) {
                     }}
                 >
                     {/* Y축 (시간) */}
-                    <div className="border-r border-gray-200 bg-card">
+                    <div className="sticky left-0 z-30 border-r border-gray-200 bg-card shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">
                         {hours.slice(0, -1).map((h) => (
                             <div
                                 key={h}
-                                className="h-15 flex items-start justify-center pt-1 text-xs text-muted-foreground border-b border-gray-200"
+                                className="h-15 flex items-start justify-center pt-1 text-[10px] lg:text-xs text-muted-foreground border-b border-gray-200 last:border-b-0"
                             >
                                 {h}:00
                             </div>
@@ -153,25 +201,19 @@ export default function Timetable({ classes, showFreeTime }: TimetableProps) {
                             {/* 공강 시간 렌더링 */}
                             {renderFreeTimeOverlays(dIdx)}
 
-                            {/* 수업 블록 렌더링 (★수정된 부분★) */}
-                            {classes
+                            {/* 수업 블록 렌더링 (★원본 classes 대신 mergedClasses 사용) */}
+                            {mergedClasses
                                 .filter((c) => c.day === dIdx)
                                 .map((c, i) => {
-                                    // 너비 분할 계산 로직(`widthPercent`, `fIndex`)을 모두 제거했습니다.
-                                    // DOM 순서대로 알아서 포개집니다.
-
                                     return (
                                         <div
                                             key={`${c.fId}-${i}`}
-                                            // className에 `absolute`, `z-10`, `rounded-lg` 등을 유지.
-                                            // `hover:z-20`과 `hover:shadow-lg`를 넣어 아래에 깔린 요소를 마우스 오버 시 위로 올리게 처리했습니다.
-                                            className=" absolute rounded-lg px-2 py-1.5 overflow-hidden shadow-sm border border-transparent hover:border-primary/30 transition-all cursor-default group z-10 hover:z-20 hover:shadow-lg"
+                                            className="absolute rounded-lg px-1.5 lg:px-2 py-1 lg:py-1.5 overflow-hidden shadow-sm border border-transparent hover:border-primary/30 transition-all cursor-default group z-10 hover:z-20 hover:shadow-lg"
                                             style={{
                                                 top: `${(c.start - startHour) * hourHeight}px`,
                                                 height: `${(c.end - c.start) * hourHeight}px`,
-                                                // ★변경★ 너비를 꽉 채우고(양 옆에 작은 여백) 계산식 제거
-                                                left: "4px",
-                                                right: "4px",
+                                                left: "2px",
+                                                right: "2px",
                                                 backgroundColor:
                                                     getFriendColorHex(c.fId),
                                             }}
