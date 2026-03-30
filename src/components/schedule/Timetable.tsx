@@ -44,6 +44,14 @@ export default function Timetable({
         end: number;
     } | null>(null);
 
+    const [hoveredFreeTime, setHoveredFreeTime] = useState<{
+        day: number;
+        start: number;
+        end: number;
+    } | null>(null);
+
+    const activeFreeTime = hoveredFreeTime || selectedFreeTime;
+
     const maxDay = useMemo(() => {
         return classes.reduce((max, c) => Math.max(max, c.day), 4);
     }, [classes]);
@@ -121,20 +129,33 @@ export default function Timetable({
         return freeBlocks
             .filter((block) => block.end - block.start >= 1)
             .map((block, idx) => {
-                const isSelected =
+                const isClicked =
                     selectedFreeTime?.day === dayIdx &&
                     selectedFreeTime?.start === block.start &&
                     selectedFreeTime?.end === block.end;
 
-                const isOtherSelected =
-                    selectedFreeTime !== null && !isSelected;
+                const isActive =
+                    activeFreeTime?.day === dayIdx &&
+                    activeFreeTime?.start === block.start &&
+                    activeFreeTime?.end === block.end;
+
+                const isOtherActive = activeFreeTime !== null && !isActive;
 
                 return (
                     <div
                         key={`free-${idx}`}
+                        onMouseEnter={() =>
+                            setHoveredFreeTime({
+                                day: dayIdx,
+                                start: block.start,
+                                end: block.end,
+                            })
+                        }
+                        onMouseLeave={() => setHoveredFreeTime(null)}
                         onClick={(e) => {
                             e.stopPropagation();
-                            if (isSelected) {
+                            // isClicked를 기준으로 선택 해제/지정
+                            if (isClicked) {
                                 setSelectedFreeTime(null);
                             } else {
                                 setSelectedFreeTime({
@@ -145,15 +166,15 @@ export default function Timetable({
                             }
                         }}
                         className={`absolute z-10 bg-[#a1f3be] flex flex-col items-center justify-center cursor-pointer transition-all duration-200 ${
-                            isSelected
-                                ? "border-2 border-emerald-600 shadow-md opacity-100 z-20 hover:scale-[1.01]"
-                                : isOtherSelected
+                            isActive
+                                ? "border-2 border-emerald-600 shadow-md opacity-100 z-20 scale-[1.01]"
+                                : isOtherActive
                                   ? "border border-green-400 opacity-30 hover:opacity-60"
                                   : "border border-green-400 opacity-80 hover:opacity-100 hover:border-green-500"
                         }`}
                         style={{
-                            top: `${(block.start - startHour) * hourHeight - (isSelected ? 1 : 0)}px`,
-                            height: `${(block.end - block.start) * hourHeight + (isSelected ? 1 : 0)}px`,
+                            top: `${(block.start - startHour) * hourHeight - (isActive ? 1 : 0)}px`,
+                            height: `${(block.end - block.start) * hourHeight + (isActive ? 1 : 0)}px`,
                             left: "2px",
                             right: "2px",
                         }}
@@ -162,9 +183,9 @@ export default function Timetable({
             });
     };
 
-    const isHourInSelectedFreeTime = (hour: number) => {
-        if (!selectedFreeTime) return false;
-        return hour >= selectedFreeTime.start && hour < selectedFreeTime.end;
+    const isHourInActiveFreeTime = (hour: number) => {
+        if (!activeFreeTime) return false;
+        return hour >= activeFreeTime.start && hour < activeFreeTime.end;
     };
 
     return (
@@ -198,27 +219,27 @@ export default function Timetable({
                         gridTemplateColumns: `60px repeat(${numCols}, minmax(0, 1fr))`,
                     }}
                 >
-                    <div className=" left-0 z-30 border-r border-gray-200 bg-card shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)] relative">
-                        {selectedFreeTime && (
+                    <div className="left-0 z-30 border-r border-gray-200 bg-card shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)] relative">
+                        {activeFreeTime && (
                             <div
-                                className="absolute left-0 right-0 border-2 shadow-md border-emerald-600 pointer-events-none transition-all duration-300 z-20"
+                                className="absolute left-0 right-0 border-2 shadow-md border-emerald-600 pointer-events-none transition-all duration-300 z-20 scale-[1.01]"
                                 style={{
-                                    top: `${(selectedFreeTime.start - startHour) * hourHeight - 1}px`,
-                                    height: `${(selectedFreeTime.end - selectedFreeTime.start) * hourHeight + 1}px`,
+                                    top: `${(activeFreeTime.start - startHour) * hourHeight - 1}px`,
+                                    height: `${(activeFreeTime.end - activeFreeTime.start) * hourHeight + 1}px`,
                                 }}
                             />
                         )}
 
                         {hours.slice(0, -1).map((h) => {
-                            const isHighlighted = isHourInSelectedFreeTime(h);
-                            const isAnySelected = selectedFreeTime !== null;
+                            const isHighlighted = isHourInActiveFreeTime(h);
+                            const isAnyActive = activeFreeTime !== null;
                             return (
                                 <div
                                     key={h}
                                     className={`h-15 flex items-start justify-center pt-1 text-[10px] lg:text-xs border-b border-gray-200 last:border-b-0 transition-all duration-300 ${
                                         isHighlighted
                                             ? "font-bold text-black bg-emerald-100 opacity-100"
-                                            : isAnySelected
+                                            : isAnyActive
                                               ? "text-muted-foreground opacity-30"
                                               : "text-muted-foreground opacity-100"
                                     }`}
@@ -245,7 +266,7 @@ export default function Timetable({
                                 .filter((c) => c.day === dIdx)
                                 .map((c, i) => {
                                     const opacityClass = showFreeTime
-                                        ? selectedFreeTime
+                                        ? activeFreeTime
                                             ? "opacity-10"
                                             : "opacity-30"
                                         : "opacity-100";
