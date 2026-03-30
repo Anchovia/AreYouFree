@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { ClassInfo } from "../../types/schedule";
 
 interface TimetableProps {
@@ -37,6 +37,12 @@ export default function Timetable({
         (_, i) => i + startHour
     );
     const hourHeight = 60;
+
+    const [selectedFreeTime, setSelectedFreeTime] = useState<{
+        day: number;
+        start: number;
+        end: number;
+    } | null>(null);
 
     const maxDay = useMemo(() => {
         return classes.reduce((max, c) => Math.max(max, c.day), 4);
@@ -114,24 +120,58 @@ export default function Timetable({
 
         return freeBlocks
             .filter((block) => block.end - block.start >= 1)
-            .map((block, idx) => (
-                <div
-                    key={`free-${idx}`}
-                    className="absolute z-10 bg-[#a1f3be] border border-green-400 flex flex-col items-center justify-center"
-                    style={{
-                        top: `${(block.start - startHour) * hourHeight}px`,
-                        height: `${(block.end - block.start) * hourHeight}px`,
-                        left: "2px",
-                        right: "2px",
-                    }}
-                />
-            ));
+            .map((block, idx) => {
+                const isSelected =
+                    selectedFreeTime?.day === dayIdx &&
+                    selectedFreeTime?.start === block.start &&
+                    selectedFreeTime?.end === block.end;
+
+                const isOtherSelected =
+                    selectedFreeTime !== null && !isSelected;
+
+                return (
+                    <div
+                        key={`free-${idx}`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (isSelected) {
+                                setSelectedFreeTime(null);
+                            } else {
+                                setSelectedFreeTime({
+                                    day: dayIdx,
+                                    start: block.start,
+                                    end: block.end,
+                                });
+                            }
+                        }}
+                        className={`absolute z-10 bg-[#a1f3be] flex flex-col items-center justify-center cursor-pointer transition-all duration-200 ${
+                            isSelected
+                                ? "border-2 border-emerald-600 shadow-md opacity-100 z-20 hover:scale-[1.01]"
+                                : isOtherSelected
+                                  ? "border border-green-400 opacity-30 hover:opacity-60"
+                                  : "border border-green-400 opacity-80 hover:opacity-100 hover:border-green-500"
+                        }`}
+                        style={{
+                            top: `${(block.start - startHour) * hourHeight - (isSelected ? 1 : 0)}px`,
+                            height: `${(block.end - block.start) * hourHeight + (isSelected ? 1 : 0)}px`,
+                            left: "2px",
+                            right: "2px",
+                        }}
+                    />
+                );
+            });
+    };
+
+    const isHourInSelectedFreeTime = (hour: number) => {
+        if (!selectedFreeTime) return false;
+        return hour >= selectedFreeTime.start && hour < selectedFreeTime.end;
     };
 
     return (
         <div
             id="timetable-capture-area"
             className="flex-1 overflow-auto p-2 lg:p-4"
+            onClick={() => setSelectedFreeTime(null)}
         >
             <div className="bg-card rounded-xl border border-gray-200 shadow-sm w-full lg:min-w-full">
                 <div
@@ -153,25 +193,46 @@ export default function Timetable({
                     ))}
                 </div>
                 <div
-                    className="grid"
+                    className="grid relative"
                     style={{
                         gridTemplateColumns: `60px repeat(${numCols}, minmax(0, 1fr))`,
                     }}
                 >
-                    <div className="sticky left-0 z-30 border-r border-gray-200 bg-card shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)]">
-                        {hours.slice(0, -1).map((h) => (
+                    <div className=" left-0 z-30 border-r border-gray-200 bg-card shadow-[2px_0_5px_-2px_rgba(0,0,0,0.03)] relative">
+                        {selectedFreeTime && (
                             <div
-                                key={h}
-                                className="h-15 flex items-start justify-center pt-1 text-[10px] lg:text-xs text-muted-foreground border-b border-gray-200 last:border-b-0"
-                            >
-                                {h}시
-                            </div>
-                        ))}
+                                className="absolute left-0 right-0 border-2 shadow-md border-emerald-600 pointer-events-none transition-all duration-300 z-20"
+                                style={{
+                                    top: `${(selectedFreeTime.start - startHour) * hourHeight - 1}px`,
+                                    height: `${(selectedFreeTime.end - selectedFreeTime.start) * hourHeight + 1}px`,
+                                }}
+                            />
+                        )}
+
+                        {hours.slice(0, -1).map((h) => {
+                            const isHighlighted = isHourInSelectedFreeTime(h);
+                            const isAnySelected = selectedFreeTime !== null;
+                            return (
+                                <div
+                                    key={h}
+                                    className={`h-15 flex items-start justify-center pt-1 text-[10px] lg:text-xs border-b border-gray-200 last:border-b-0 transition-all duration-300 ${
+                                        isHighlighted
+                                            ? "font-bold text-black bg-emerald-100 opacity-100"
+                                            : isAnySelected
+                                              ? "text-muted-foreground opacity-30"
+                                              : "text-muted-foreground opacity-100"
+                                    }`}
+                                >
+                                    {h}시
+                                </div>
+                            );
+                        })}
                     </div>
+
                     {displayDays.map((_, dIdx) => (
                         <div
                             key={`col-${dIdx}`}
-                            className="relative border-l border-gray-200 border-r-0"
+                            className="relative border-l border-gray-200 border-r-0 z-10"
                         >
                             {hours.slice(0, -1).map((_, i) => (
                                 <div
@@ -183,14 +244,16 @@ export default function Timetable({
                             {mergedClasses
                                 .filter((c) => c.day === dIdx)
                                 .map((c, i) => {
+                                    const opacityClass = showFreeTime
+                                        ? selectedFreeTime
+                                            ? "opacity-10"
+                                            : "opacity-30"
+                                        : "opacity-100";
+
                                     return (
                                         <div
                                             key={`${c.fId}-${i}`}
-                                            className={`absolute rounded-lg px-1.5 lg:px-2 py-1 lg:py-1.5 overflow-hidden shadow-sm border border-transparent hover:border-primary/30 transition-all duration-300 cursor-default group z-10 hover:z-20 hover:shadow-lg ${
-                                                showFreeTime
-                                                    ? "opacity-30"
-                                                    : "opacity-100"
-                                            }`}
+                                            className={`absolute rounded-lg px-1.5 lg:px-2 py-1 lg:py-1.5 overflow-hidden shadow-sm border border-transparent hover:border-primary/30 transition-all duration-300 cursor-default group z-20 hover:z-30 hover:shadow-lg ${opacityClass}`}
                                             style={{
                                                 top: `${(c.start - startHour) * hourHeight}px`,
                                                 height: `${(c.end - c.start) * hourHeight}px`,
